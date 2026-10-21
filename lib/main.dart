@@ -268,8 +268,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'نظام الجامعة',
-        theme: ThemeData(
-            useMaterial3: true, colorSchemeSeed: const Color(0xFF1E3A8A)),
+        theme: appTheme(),
         builder: (c, child) =>
             Directionality(textDirection: TextDirection.rtl, child: child!),
         home: error == null
@@ -490,30 +489,318 @@ Future<Map<String, String>?> formDialog(
   );
 }
 
-class StatCard extends StatelessWidget {
-  final String title, value;
-  final IconData icon;
-  const StatCard(this.title, this.value, this.icon, {super.key});
+// ============================ التصميم ============================
+const kPrimary = Color(0xFF0E4D64);
+const kPrimaryDark = Color(0xFF082F3E);
+const kAccent = Color(0xFFF2A541);
+const kBg = Color(0xFFF3F6F8);
+const kSoft = Color(0xFFE3EEF2);
+const kGreen = Color(0xFF2E7D32);
+const kRed = Color(0xFFC62828);
+const kFont = 'Almarai';
+
+ThemeData appTheme() {
+  final cs = ColorScheme.fromSeed(seedColor: kPrimary, primary: kPrimary, secondary: kAccent, surface: Colors.white);
+  final round = RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: cs,
+    fontFamily: kFont,
+    scaffoldBackgroundColor: kBg,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: kPrimary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: false,
+      titleTextStyle: TextStyle(fontFamily: kFont, fontSize: 19, fontWeight: FontWeight.w800, color: Colors.white),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(26))),
+    ),
+    cardTheme: CardThemeData(
+      color: Colors.white,
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18), side: const BorderSide(color: Color(0xFFE6ECEF))),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+          backgroundColor: kPrimary,
+          foregroundColor: Colors.white,
+          shape: round,
+          textStyle: const TextStyle(fontFamily: kFont, fontWeight: FontWeight.w700, fontSize: 15)),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(foregroundColor: kPrimary, shape: round, side: const BorderSide(color: kPrimary)),
+    ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: kPrimary, foregroundColor: Colors.white),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDCE4E8))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDCE4E8))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kPrimary, width: 1.6)),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: Colors.white,
+      indicatorColor: kAccent.withValues(alpha: 0.25),
+      iconTheme: WidgetStateProperty.resolveWith((st) =>
+          IconThemeData(color: st.contains(WidgetState.selected) ? kPrimary : Colors.grey.shade600)),
+      labelTextStyle: WidgetStateProperty.resolveWith((st) => TextStyle(
+          fontFamily: kFont,
+          fontSize: 12,
+          fontWeight: st.contains(WidgetState.selected) ? FontWeight.w800 : FontWeight.w400,
+          color: st.contains(WidgetState.selected) ? kPrimary : Colors.grey.shade600)),
+    ),
+    chipTheme: ChipThemeData(
+      selectedColor: kPrimary,
+      checkmarkColor: Colors.white,
+      labelStyle: const TextStyle(fontFamily: kFont),
+      secondaryLabelStyle: const TextStyle(fontFamily: kFont, color: Colors.white),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+    dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+  );
+}
+
+String greeting() => DateTime.now().hour < 12 ? 'صباح الخير' : 'مساء الخير';
+
+String initials(String name) {
+  final parts = name.replaceAll('د.', '').trim().split(RegExp(r'\s+')).where((x) => x.isNotEmpty).toList();
+  if (parts.isEmpty) return '?';
+  if (parts.length == 1) return parts.first.characters.first;
+  return '${parts[0].characters.first}${parts[1].characters.first}';
+}
+
+/// خلفية الهيدر المنحنية
+class _WaveClip extends CustomClipper<Path> {
+  @override
+  Path getClip(Size s) => Path()
+    ..lineTo(0, s.height - 22)
+    ..quadraticBezierTo(s.width * 0.25, s.height, s.width * 0.5, s.height - 12)
+    ..quadraticBezierTo(s.width * 0.78, s.height - 26, s.width, s.height - 6)
+    ..lineTo(s.width, 0)
+    ..close();
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> o) => false;
+}
+
+/// الهيدر الكبير للصفحات الرئيسية (تحية + اسم + أفاتار)
+class UniHeader extends StatelessWidget implements PreferredSizeWidget {
+  final String title;
+  final String? name, line, sub;
+  final List<Widget> actions;
+  final Widget? bottom;
+  final double extra;
+  final bool back;
+  const UniHeader(
+      {super.key, required this.title, this.name, this.line, this.sub, this.actions = const [], this.bottom, this.extra = 0, this.back = false});
+
+  @override
+  Size get preferredSize => Size.fromHeight((name != null ? 158 : (sub != null ? 104 : 88)) + extra);
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      color: cs.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: cs.primary),
-            const SizedBox(height: 6),
-            Text(value,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
-          ],
+    final top = MediaQuery.of(context).padding.top;
+    return SizedBox(
+      height: preferredSize.height + top,
+      child: ClipPath(
+        clipper: _WaveClip(),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [kPrimaryDark, kPrimary], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          ),
+          padding: EdgeInsets.fromLTRB(16, top + 10, 8, 24),
+          child: DefaultTextStyle(
+            style: const TextStyle(fontFamily: kFont, color: Colors.white),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                if (back) const BackButton(color: Colors.white),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Flexible(
+                        child: Text(title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.circle, size: 7, color: kAccent),
+                    ]),
+                    if (sub != null)
+                      Text(sub!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                  ]),
+                ),
+                Theme(
+                  data: Theme.of(context).copyWith(
+                      iconButtonTheme: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: Colors.white))),
+                  child: IconTheme(
+                      data: const IconThemeData(color: Colors.white),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: actions)),
+                ),
+              ]),
+              if (name != null) ...[
+                const SizedBox(height: 14),
+                Row(children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.14),
+                        border: Border.all(color: kAccent, width: 1.5)),
+                    child: Text(initials(name!), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(greeting(), style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                      Text(name!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                      if (line != null)
+                        Text(line!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                    ]),
+                  ),
+                ]),
+              ],
+              if (bottom != null) ...[const SizedBox(height: 10), bottom!],
+            ]),
+          ),
         ),
       ),
     );
   }
+}
+
+/// مربعات صغيرة داخل الهيدر (مثل: الطلاب ٨ • المحاضرات ٤)
+Widget headerPills(List<(String, String)> items) => Row(children: [
+      for (final it in items)
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+            child: Column(children: [
+              Text(it.$1, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+              Text(it.$2, style: const TextStyle(fontSize: 11, color: Colors.white70)),
+            ]),
+          ),
+        ),
+    ]);
+
+class StatCard extends StatelessWidget {
+  final String title, value;
+  final IconData icon;
+  final String? sub;
+  final Color? color;
+  const StatCard(this.title, this.value, this.icon, {super.key, this.sub, this.color});
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+          Row(children: [
+            Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: Colors.grey.shade700))),
+            Icon(icon, size: 18, color: Colors.grey.shade600),
+          ]),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: color ?? kPrimaryDark)),
+          if (sub != null) Text(sub!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+        ]),
+      ),
+    );
+  }
+}
+
+/// شبكة مربعات الإحصائيات (عمودين)
+Widget statGrid(List<Widget> cards) => LayoutBuilder(builder: (context, c) {
+      final n = c.maxWidth > 760 ? 4 : 2;
+      final w = (c.maxWidth - (n - 1) * 6) / n;
+      return GridView.count(
+        crossAxisCount: n,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: w / 108,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 6,
+        children: cards,
+      );
+    });
+
+Widget sectionTitle(String t, [int? count]) => Padding(
+      padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
+      child: Row(children: [
+        Text(t, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kPrimaryDark)),
+        if (count != null) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+            decoration: BoxDecoration(color: kSoft, borderRadius: BorderRadius.circular(10)),
+            child: Text('$count', style: const TextStyle(fontSize: 11, color: kPrimary, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ]),
+    );
+
+/// دائرة النسبة (مثل نسبة الحضور)
+Widget ring(double? v, {double size = 52}) {
+  final c = v == null ? Colors.grey : (v < 0.75 ? kRed : kPrimary);
+  return SizedBox(
+    width: size,
+    height: size,
+    child: Stack(alignment: Alignment.center, children: [
+      CircularProgressIndicator(
+        value: v ?? 0,
+        strokeWidth: 4.5,
+        backgroundColor: kSoft,
+        color: c,
+      ),
+      Text(v == null ? '–' : pct(v), style: TextStyle(fontSize: size < 60 ? 11 : 16, fontWeight: FontWeight.w800, color: c)),
+    ]),
+  );
+}
+
+/// شارة صغيرة ملونة (حاضر/غائب/مفتوحة...)
+Widget tag(String t, Color c) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+      child: Text('• $t', style: TextStyle(fontSize: 11, color: c, fontWeight: FontWeight.w700)),
+    );
+
+/// بطاقة مادة: أيقونة + اسم + معلومات + دائرة نسبة
+Widget subjectCard(Rec s, {String? line, double? rate, bool showRing = true, VoidCallback? onTap, Widget? extra}) {
+  final doc = DB.find('accounts', (a) => a['username'] == s['doctor']);
+  return Card(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: kSoft, borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.menu_book_rounded, color: kPrimary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${s['name']}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 2),
+              Text(line ?? [if ('${s['code'] ?? ''}'.isNotEmpty) s['code'], if (doc != null) '${doc['name']}'].join(' • '),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              if (extra != null) ...[const SizedBox(height: 4), extra],
+            ]),
+          ),
+          if (showRing) ring(rate),
+        ]),
+      ),
+    ),
+  );
 }
 
 Widget empty(String m) => Center(
@@ -585,7 +872,7 @@ class _LoginPageState extends State<LoginPage> {
     final auth = FirebaseAuth.instance;
     try {
       await auth.signInWithEmailAndPassword(email: emailOf(un), password: pw);
-    } on FirebaseAuthException catch (_) {
+    } on FirebaseAuthException catch (signErr) {
       // أول دخول للطالب: الرمز = رقمه الجامعي، والحساب ينسوى تلقائياً
       var created = false;
       if (pw == un && pw.length >= 6) {
@@ -597,7 +884,9 @@ class _LoginPageState extends State<LoginPage> {
       if (!created) {
         if (mounted) {
           setState(() => busy = false);
-          toast(context, 'اسم المستخدم أو كلمة المرور غلط', Colors.red);
+          toast(context, signErr.code == 'invalid-credential' || signErr.code == 'wrong-password' || signErr.code == 'user-not-found'
+              ? 'اسم المستخدم أو كلمة المرور غلط'
+              : 'خطأ بالدخول: ${signErr.code}', Colors.red);
         }
         return;
       }
@@ -607,58 +896,78 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final top = MediaQuery.of(context).padding.top;
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(children: [
-                Icon(Icons.school, size: 80, color: cs.primary),
-                const SizedBox(height: 8),
-                const Text('نظام الجامعة',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-                const Text('الحضور بالباركود • الامتحانات • الكوزات'),
-                const SizedBox(height: 28),
-                TextField(
-                  controller: u,
-                  decoration: const InputDecoration(
-                      labelText: 'اسم المستخدم / الرقم الجامعي',
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: p,
-                  obscureText: hide,
-                  onSubmitted: (_) => login(),
-                  decoration: InputDecoration(
-                      labelText: 'كلمة المرور',
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                          icon: Icon(hide ? Icons.visibility : Icons.visibility_off),
-                          onPressed: () => setState(() => hide = !hide)),
-                      border: const OutlineInputBorder()),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: FilledButton(
-                      onPressed: busy ? null : login,
-                      child: busy
-                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('دخول')),
-                ),
-                const SizedBox(height: 12),
-                const Text('الطالب: أول مرة يدخل برقمه الجامعي بالخانتين، وبعدها يختار رمز جديد',
-                    textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12)),
+      body: SingleChildScrollView(
+        child: Column(children: [
+          ClipPath(
+            clipper: _WaveClip(),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(20, top + 20, 20, 46),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(colors: [kPrimaryDark, kPrimary], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              ),
+              child: const Column(children: [
+                Row(children: [
+                  Text('الحضور الجامعي', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                  SizedBox(width: 6),
+                  Icon(Icons.circle, size: 7, color: kAccent),
+                ]),
+                SizedBox(height: 18),
+                Icon(Icons.school_rounded, size: 72, color: Colors.white),
+                SizedBox(height: 6),
+                Text('جامعة المعقل', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                Text('الحضور بالباركود • الامتحانات • الكوزات', style: TextStyle(color: Colors.white70, fontSize: 12)),
               ]),
             ),
           ),
-        ),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  const Text('تسجيل الدخول', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: kPrimaryDark)),
+                  const SizedBox(height: 6),
+                  Text('الطالب يدخل برقمه الجامعي، والكادر باسم المستخدم الذي أعطاه إياه المدير',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                  const SizedBox(height: 22),
+                  TextField(
+                    controller: u,
+                    decoration: const InputDecoration(
+                        hintText: 'اسم المستخدم / الرقم الجامعي', prefixIcon: Icon(Icons.person_outline)),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: p,
+                    obscureText: hide,
+                    onSubmitted: (_) => login(),
+                    decoration: InputDecoration(
+                        hintText: 'كلمة المرور',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                            icon: Icon(hide ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                            onPressed: () => setState(() => hide = !hide))),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    height: 54,
+                    child: FilledButton.icon(
+                        onPressed: busy ? null : login,
+                        icon: busy
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.login_rounded),
+                        label: const Text('تسجيل الدخول')),
+                  ),
+                  const SizedBox(height: 14),
+                  Text('الطالب: أول مرة يكتب رقمه الجامعي بالخانتين، وبعدها يختار رمز جديد',
+                      textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                ]),
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }
@@ -708,6 +1017,54 @@ class ReportView extends StatelessWidget {
 }
 
 // ----------------------------- إدارة المستخدمين (مشترك) -----------------------------
+/// اختيار مواد الدكتور (رئيس القسم أو رئيس الجامعة)
+Future<void> assignSubjects(BuildContext context, String doc, String dept) async {
+  final subs = DB.subjectsOfDept(dept)
+    ..sort((a, b) => '${a['stage']}${a['semester']}${a['name']}'.compareTo('${b['stage']}${b['semester']}${b['name']}'));
+  if (subs.isEmpty) {
+    toast(context, 'ماكو مواد بهذا القسم', Colors.orange);
+    return;
+  }
+  final sel = {for (final s in subs) if (s['doctor'] == doc) '${s['_id']}'};
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => StatefulBuilder(
+      builder: (c, set) => AlertDialog(
+        title: Text('مواد الدكتور ($doc)'),
+        content: SizedBox(
+          width: 420,
+          height: 460,
+          child: ListView(children: [
+            for (final s in subs)
+              CheckboxListTile(
+                value: sel.contains('${s['_id']}'),
+                title: Text('${s['name']}'),
+                subtitle: Text(DB.subInfo(s) +
+                    (('${s['doctor'] ?? ''}'.isNotEmpty && s['doctor'] != doc) ? '\nحالياً: ${s['doctor']}' : '')),
+                onChanged: (v) => set(() => v == true ? sel.add('${s['_id']}') : sel.remove('${s['_id']}')),
+              ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text('حفظ (${sel.length})')),
+        ],
+      ),
+    ),
+  );
+  if (ok != true) return;
+  try {
+    for (final s in subs) {
+      final has = s['doctor'] == doc, want = sel.contains('${s['_id']}');
+      if (has == want) continue;
+      await FirebaseFirestore.instance.collection('subjects').doc('${s['_id']}').update({'doctor': want ? doc : ''});
+    }
+    if (context.mounted) toast(context, 'انحفظت مواد الدكتور ✓', Colors.green);
+  } catch (e) {
+    if (context.mounted) toast(context, 'ما انحفظ: $e', Colors.red);
+  }
+}
+
 class UsersManage extends StatefulWidget {
   final List<String> roles;
   final String? dept; // null = كل الأقسام
@@ -762,6 +1119,9 @@ class _UsersManageState extends Live<UsersManage> {
         'dept': dept,
       }, un);
       if (mounted) toast(context, 'انضاف ✓  المستخدم: $un', Colors.green);
+      if ((r['_drop'] ?? widget.roles.first) == 'doctor' && mounted) {
+        await assignSubjects(context, un, dept);
+      }
     } catch (e) {
       if (mounted) toast(context, 'ما انضاف: $e', Colors.red);
     }
@@ -782,7 +1142,10 @@ class _UsersManageState extends Live<UsersManage> {
                 ListTile(
                   leading: CircleAvatar(child: Text('${u['name']}'.characters.first)),
                   title: Text('${u['name']}'),
-                  subtitle: Text('${roleNames[u['role']]} • ${u['username']} • ${u['dept']}'),
+                  subtitle: Text('${roleNames[u['role']]} • ${u['username']} • ${u['dept']}'
+                      '${u['role'] == 'doctor' ? '\nالمواد: ${DB.list('subjects').where((x) => x['doctor'] == u['username']).length} (اضغط للتعديل)' : ''}'),
+                  isThreeLine: u['role'] == 'doctor',
+                  onTap: u['role'] == 'doctor' ? () => assignSubjects(context, '${u['username']}', '${u['dept']}') : null,
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: () async {
@@ -961,37 +1324,50 @@ class _PresidentHomeState extends Live<PresidentHome> {
 
   Widget dashboard() {
     final depts = DB.depts();
-    final cards = [
-      StatCard('الأقسام', '${depts.length}', Icons.apartment),
-      StatCard('الطلاب', '${DB.list('students').length}', Icons.groups),
-      StatCard('الدكاترة', '${DB.list('accounts').where((u) => u['role'] == 'doctor').length}', Icons.person),
-      StatCard('المواد', '${DB.list('subjects').length}', Icons.menu_book),
-      StatCard('نسبة الحضور', pct(DB.attRate()), Icons.how_to_reg),
-      StatCard('امتحانات وكوزات', '${DB.list('exams').length}', Icons.quiz),
-      StatCard('معدل الدرجات', pct(DB.avgScore()), Icons.grade),
-    ];
-    return ListView(padding: const EdgeInsets.all(8), children: [
-      GridView.count(
-        crossAxisCount: 3,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 0.95,
-        children: cards,
-      ),
-      const Padding(
-        padding: EdgeInsets.all(8),
-        child: Text('الأقسام', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-      ),
-      for (final dp in depts)
+    final noDoc = DB.list('subjects').where((s) => '${s['doctor'] ?? ''}'.isEmpty ||
+        DB.find('accounts', (a) => a['username'] == s['doctor']) == null).length;
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 20), children: [
+      statGrid([
+        StatCard('الطلاب', '${DB.list('students').length}', Icons.school_outlined, sub: 'بكل الأقسام'),
+        StatCard('التدريسيين', '${DB.list('accounts').where((u) => u['role'] == 'doctor').length}', Icons.badge_outlined, sub: 'حساب فعّال'),
+        StatCard('المواد', '${DB.list('subjects').length}', Icons.menu_book_outlined, sub: '${depts.length} أقسام'),
+        StatCard('نسبة الحضور', pct(DB.attRate()), Icons.fact_check_outlined, sub: 'لكل المواد'),
+        StatCard('امتحانات وكوزات', '${DB.list('exams').length}', Icons.quiz_outlined),
+        StatCard('معدل الدرجات', pct(DB.avgScore()), Icons.grade_outlined),
+      ]),
+      if (noDoc > 0) ...[
+        sectionTitle('تحتاج إجراء'),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.apartment),
-            title: Text(dp),
-            subtitle: Text(
-                'طلاب: ${DB.list('students').where((s) => s['dept'] == dp).length} • '
-                'مواد: ${DB.subjectsOfDept(dp).length} • '
-                'حضور: ${pct(DB.attRate(dept: dp))} • '
-                'معدل: ${pct(DB.avgScore(dept: dp))}'),
+            leading: const Icon(Icons.person_search_outlined, color: kAccent),
+            title: Text('$noDoc مادة بلا تدريسي'),
+            subtitle: const Text('عيّن تدريسيين من تبويب المستخدمين (اضغط على الدكتور)'),
+            onTap: () => setState(() => i = 2),
+          ),
+        ),
+      ],
+      sectionTitle('الأقسام', depts.length),
+      for (final dp in depts)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: kSoft, borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.apartment_rounded, color: kPrimary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(dp, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  Text('طلاب ${DB.list('students').where((s) => s['dept'] == dp).length} • مواد ${DB.subjectsOfDept(dp).length} • معدل ${pct(DB.avgScore(dept: dp))}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                ]),
+              ),
+              ring(DB.list('attendance').isEmpty ? null : DB.attRate(dept: dp)),
+            ]),
           ),
         ),
     ]);
@@ -1005,21 +1381,19 @@ class _PresidentHomeState extends Live<PresidentHome> {
       const UsersManage(roles: ['head', 'doctor']),
       ChatListPage(me: meOf(widget.user)),
     ];
+    const titles = ['الحضور الجامعي', 'التقارير', 'المستخدمون', 'المحادثات'];
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.user['name']}'),
-        actions: [
-          logoutBtn(context),
-        ],
-      ),
+      appBar: i == 0
+          ? UniHeader(title: titles[0], name: '${widget.user['name']}', line: 'مدير النظام', actions: [logoutBtn(context)])
+          : UniHeader(title: titles[i], sub: 'كل الأقسام', actions: [logoutBtn(context)]),
       body: pages[i],
       bottomNavigationBar: NavigationBar(
         selectedIndex: i,
         onDestinationSelected: (v) => setState(() => i = v),
         destinations: [
-          const NavigationDestination(icon: Icon(Icons.dashboard), label: 'الرئيسية'),
-          const NavigationDestination(icon: Icon(Icons.bar_chart), label: 'التقارير'),
-          const NavigationDestination(icon: Icon(Icons.manage_accounts), label: 'المستخدمين'),
+          const NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view_rounded), label: 'الرئيسية'),
+          const NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'التقارير'),
+          const NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'المستخدمون'),
           NavigationDestination(icon: chatIcon('${widget.user['username']}', Icons.chat), label: 'المحادثات'),
         ],
       ),
@@ -1040,24 +1414,62 @@ class _HeadHomeState extends Live<HeadHome> {
   @override
   Widget build(BuildContext context) {
     final dept = '${widget.user['dept']}';
+    final subs = DB.subjectsOfDept(dept);
+    final noDoc = subs.where((s) => '${s['doctor'] ?? ''}'.isEmpty ||
+        DB.find('accounts', (a) => a['username'] == s['doctor']) == null).toList();
+    final home = ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 20), children: [
+      statGrid([
+        StatCard('الطلاب', '${DB.list('students').where((x) => x['dept'] == dept).length}', Icons.school_outlined, sub: 'حساب القسم'),
+        StatCard('التدريسيين', '${DB.list('accounts').where((u) => u['role'] == 'doctor' && u['dept'] == dept).length}', Icons.badge_outlined, sub: 'حساب فعّال'),
+        StatCard('المواد', '${subs.length}', Icons.menu_book_outlined, sub: 'بالقسم'),
+        StatCard('نسبة الحضور', pct(DB.attRate(dept: dept)), Icons.fact_check_outlined, sub: 'لكل المواد'),
+      ]),
+      if (noDoc.isNotEmpty) ...[
+        sectionTitle('تحتاج إجراء'),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.person_search_outlined, color: kAccent),
+            title: Text('${noDoc.length} مادة بلا تدريسي'),
+            subtitle: const Text('اضغط على الدكتور بتبويب الدكاترة واختار مواده'),
+            onTap: () => setState(() => i = 3),
+          ),
+        ),
+      ],
+      sectionTitle('التقارير'),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.bar_chart_rounded, color: kPrimary),
+          title: const Text('تقرير الحضور لكل المواد'),
+          subtitle: const Text('نسبة كل طالب بكل مادة، والأقل من 75% بالأحمر'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => Scaffold(appBar: AppBar(title: const Text('تقرير الحضور')), body: ReportView(dept: dept)))),
+        ),
+      ),
+    ]);
     final pages = [
+      home,
       SubjectsManage(dept: dept),
       StudentsManage(dept: dept),
       UsersManage(roles: const ['doctor'], dept: dept),
-      ReportView(dept: dept),
       ChatListPage(me: meOf(widget.user)),
     ];
+    const titles = ['الحضور الجامعي', 'المواد', 'الطلاب', 'التدريسيين', 'المحادثات'];
     return Scaffold(
-      appBar: AppBar(title: Text('رئيس القسم • $dept'), actions: [logoutBtn(context)]),
+      appBar: i == 0
+          ? UniHeader(title: titles[0], name: '${widget.user['name']}', line: 'رئيس قسم • $dept', actions: [logoutBtn(context)])
+          : UniHeader(title: titles[i], sub: dept, actions: [logoutBtn(context)]),
       body: pages[i],
       bottomNavigationBar: NavigationBar(
         selectedIndex: i,
         onDestinationSelected: (v) => setState(() => i = v),
         destinations: [
-          const NavigationDestination(icon: Icon(Icons.menu_book), label: 'المواد'),
-          const NavigationDestination(icon: Icon(Icons.groups), label: 'الطلاب'),
-          const NavigationDestination(icon: Icon(Icons.person), label: 'الدكاترة'),
-          const NavigationDestination(icon: Icon(Icons.bar_chart), label: 'التقارير'),
+          const NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view_rounded), label: 'الرئيسية'),
+          const NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'المواد'),
+          const NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups), label: 'الطلاب'),
+          const NavigationDestination(icon: Icon(Icons.badge_outlined), selectedIcon: Icon(Icons.badge), label: 'التدريسيين'),
           NavigationDestination(icon: chatIcon('${widget.user['username']}', Icons.chat), label: 'المحادثات'),
         ],
       ),
@@ -1077,33 +1489,64 @@ class _DoctorHomeState extends Live<DoctorHome> {
   @override
   Widget build(BuildContext context) {
     final subs = DB.list('subjects').where((s) => s['doctor'] == widget.user['username']).toList();
+    final students = <String>{};
+    final over = <String>{};
+    for (final sub in subs) {
+      final has = DB.lectures(sub['id']) > 0;
+      for (final st in DB.studentsOf(sub)) {
+        students.add('${st['id']}');
+        if (has && DB.attRate(subjectId: sub['id'], studentId: st['id']) < 0.75) over.add('${st['id']}');
+      }
+    }
+    final rates = [for (final sub in subs) if (DB.lectures(sub['id']) > 0) DB.attRate(subjectId: sub['id'])];
+    final avg = rates.isEmpty ? null : rates.reduce((a, b) => a + b) / rates.length;
+    final todayCount = DB.list('attendance').where((a) => a['date'] == today() && subs.any((x) => x['id'] == a['subjectId'])).map((a) => a['subjectId']).toSet().length;
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.user['name']}'), actions: [
-        IconButton(
-          tooltip: 'المحادثات',
-          icon: chatIcon('${widget.user['username']}', Icons.chat),
-          onPressed: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => ChatListPage(me: meOf(widget.user), standalone: true))),
-        ),
-        logoutBtn(context),
-      ]),
-      body: subs.isEmpty
-          ? empty('ماكو مواد مسندة إلك')
-          : ListView(padding: const EdgeInsets.all(8), children: [
-              for (final s in subs)
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.menu_book, size: 32),
-                    title: Text('${s['name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('${DB.subInfo(s)}\nطلاب: ${DB.studentsOf(s).length} • محاضرات: ${DB.lectures(s['id'])} • حضور: ${pct(DB.attRate(subjectId: s['id']))}'),
-                    trailing: const Icon(Icons.chevron_left),
-                    onTap: () async {
-                      await Navigator.push(context, MaterialPageRoute(builder: (_) => SubjectPage(subject: s)));
-                      setState(() {});
-                    },
-                  ),
-                ),
+      appBar: UniHeader(
+        title: 'الحضور الجامعي',
+        name: '${widget.user['name']}',
+        line: 'تدريسي • ${widget.user['dept']}',
+        actions: [
+          IconButton(
+            tooltip: 'المحادثات',
+            icon: chatIcon('${widget.user['username']}', Icons.chat_bubble_outline),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => ChatListPage(me: meOf(widget.user), standalone: true))),
+          ),
+          logoutBtn(context),
+        ],
+      ),
+      body: ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 20), children: [
+        statGrid([
+          StatCard('طلابي', '${students.length}', Icons.groups_outlined, sub: 'بكل المواد'),
+          StatCard('موادي', '${subs.length}', Icons.menu_book_outlined, sub: 'هذا الفصل'),
+          StatCard('متوسط الحضور', avg == null ? '–' : pct(avg), Icons.fact_check_outlined, sub: 'لكل المواد'),
+          StatCard('تجاوزوا الحد', '${over.length}', Icons.warning_amber_rounded,
+              sub: 'يحتاجون متابعة', color: over.isEmpty ? null : kRed),
+        ]),
+        sectionTitle('موادي', subs.length),
+        if (subs.isEmpty) empty('ماكو مواد مسندة إلك\nرئيس القسم يختار موادك من تبويب التدريسيين'),
+        for (final s in subs)
+          subjectCard(
+            s,
+            line: '${s['code'] ?? ''} • طلاب ${DB.studentsOf(s).length} • محاضرات ${DB.lectures(s['id'])}',
+            rate: DB.lectures(s['id']) > 0 ? DB.attRate(subjectId: s['id']) : null,
+            extra: Wrap(spacing: 6, children: [
+              if ('${s['stage'] ?? ''}'.isNotEmpty) tag('${s['stage']}', kPrimary),
+              if (DB.list('attendance').any((a) => a['subjectId'] == s['id'] && a['date'] == today())) tag('سُجّل اليوم', kGreen),
             ]),
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => SubjectPage(subject: s)));
+              setState(() {});
+            },
+          ),
+        if (todayCount == 0 && subs.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text('اضغط على المادة ثم «تسجيل الحضور بالباركود» لبدء محاضرة اليوم',
+                textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          ),
+      ]),
     );
   }
 }
@@ -1125,8 +1568,19 @@ class _SubjectPageState extends Live<SubjectPage> {
   Widget build(BuildContext context) {
     final s = widget.subject;
     final exams = DB.list('exams').where((e) => e['subjectId'] == s['id']).toList();
+    final lec = DB.lectures(s['id']);
     return Scaffold(
-      appBar: AppBar(title: Text('${s['name']}')),
+      appBar: UniHeader(
+        title: '${s['name']}',
+        sub: DB.subInfo(s),
+        back: true,
+        extra: 64,
+        bottom: headerPills([
+          ('${DB.studentsOf(s).length}', 'الطلاب'),
+          ('$lec', 'المحاضرات'),
+          (lec == 0 ? '–' : pct(DB.attRate(subjectId: s['id'])), 'الحضور'),
+        ]),
+      ),
       body: ListView(padding: const EdgeInsets.all(12), children: [
         SizedBox(
           height: 60,
@@ -1152,13 +1606,14 @@ class _SubjectPageState extends Live<SubjectPage> {
                 label: const Text('امتحان / كوز')),
           ),
         ]),
-        const SizedBox(height: 16),
-        const Text('الامتحانات والكوزات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        sectionTitle('الامتحانات والكوزات', exams.length),
         if (exams.isEmpty) empty('ماكو امتحانات بعد'),
         for (final e in exams)
           Card(
             child: ListTile(
-              leading: Icon(e['type'] == 'quiz' ? Icons.bolt : Icons.assignment),
+              leading: CircleAvatar(
+                  backgroundColor: kSoft,
+                  child: Icon(e['type'] == 'quiz' ? Icons.bolt : Icons.assignment_outlined, color: kPrimary)),
               title: Text('${e['title']}'),
               subtitle: Text(
                   '${e['type'] == 'quiz' ? 'كوز' : 'امتحان'} • ${(e['questions'] as List).length} سؤال • ${e['duration']} دقيقة\n'
@@ -1553,68 +2008,149 @@ class _StudentHomeState extends Live<StudentHome> {
       .where((s) => '${s['stage'] ?? ''}'.isEmpty || s['stage'] == me['stage'])
       .toList();
 
-  Widget card() {
-    final ascii = RegExp(r'^[\x20-\x7E]+$').hasMatch(sid);
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      Card(
-        elevation: 3,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(children: [
-            const Icon(Icons.school, size: 48),
-            Text('${me['name']}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            Text('${me['dept']}'),
-            Text([me['stage'], me['shift']].where((x) => '${x ?? ''}'.isNotEmpty).join(' • ')),
-            const SizedBox(height: 20),
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(12),
-              child: BarcodeWidget(
-                barcode: ascii ? Barcode.code128() : Barcode.qrCode(),
-                data: sid,
-                width: 280,
-                height: ascii ? 110 : 200,
-                drawText: true,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text('اعرض هذا الباركود للدكتور حتى يسجل حضورك',
-                textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+  bool get _ascii => RegExp(r'^[\x20-\x7E]+$').hasMatch(sid);
+
+  Widget barcodeBox({double width = 260}) => Container(
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.all(12),
+        child: BarcodeWidget(
+          barcode: _ascii ? Barcode.code128() : Barcode.qrCode(),
+          data: sid,
+          width: width,
+          height: _ascii ? width * 0.38 : width * 0.7,
+          drawText: true,
+          style: const TextStyle(fontFamily: kFont, fontSize: 13),
+        ),
+      );
+
+  void showBarcode() => showDialog(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('باركود الحضور', textAlign: TextAlign.center),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            barcodeBox(width: 280),
+            const SizedBox(height: 10),
+            Text('${me['name']}', style: const TextStyle(fontWeight: FontWeight.w800)),
+            const Text('وجّه الباركود لكاميرا الدكتور', style: TextStyle(color: Colors.grey, fontSize: 12)),
           ]),
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('إغلاق'))],
+        ),
+      );
+
+  List<Rec> _recs(Rec s) =>
+      DB.list('attendance').where((a) => a['subjectId'] == s['id'] && a['studentId'] == sid).toList();
+
+  Widget home() {
+    final subs = mySubjects;
+    final all = DB.list('attendance').where((a) => a['studentId'] == sid).toList();
+    final absent = all.where((a) => a['present'] != true).length;
+    final ids = subs.map((s) => s['id']).toSet();
+    final openExams = DB.list('exams').where((e) => ids.contains(e['subjectId']) &&
+        DB.find('submissions', (r) => r['examId'] == e['id'] && r['studentId'] == sid) == null).length;
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 20), children: [
+      Card(
+        color: kPrimaryDark,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: showBarcode,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(color: kAccent, borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.qr_code_2_rounded, color: kPrimaryDark, size: 30),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('باركود الحضور', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                  Text('اضغط واعرضه للدكتور حتى يسجل حضورك', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ]),
+              ),
+              const Icon(Icons.chevron_left, color: Colors.white),
+            ]),
+          ),
         ),
       ),
-      const SizedBox(height: 8),
-      Row(children: [
-        Expanded(child: StatCard('نسبة حضوري', pct(DB.attRate(studentId: sid)), Icons.how_to_reg)),
-        Expanded(
-            child: StatCard('امتحانات سلّمتها',
-                '${DB.list('submissions').where((r) => r['studentId'] == sid).length}', Icons.quiz)),
+      const SizedBox(height: 6),
+      statGrid([
+        StatCard('نسبة حضوري', all.isEmpty ? '–' : pct(DB.attRate(studentId: sid)), Icons.fact_check_outlined,
+            sub: 'حضرت ${all.length - absent} من ${all.length}'),
+        StatCard('موادي', '${subs.length}', Icons.menu_book_outlined, sub: 'مسجل هذا الفصل'),
+        StatCard('امتحانات متاحة', '$openExams', Icons.quiz_outlined, sub: 'بانتظار الحل', color: openExams > 0 ? kAccent : null),
+        StatCard('مرات الغياب', '$absent', Icons.event_busy_outlined, sub: 'لكل المواد', color: absent > 0 ? kRed : null),
       ]),
+      sectionTitle('موادي', subs.length),
+      if (subs.isEmpty) empty('ماكو مواد لمرحلتك بعد'),
+      for (final s in subs)
+        subjectCard(s,
+            rate: _recs(s).isEmpty ? null : DB.attRate(studentId: sid, subjectId: s['id']),
+            onTap: () => setState(() => i = 1)),
     ]);
   }
 
   Widget attendance() {
     final subs = mySubjects;
     if (subs.isEmpty) return empty('ماكو مواد');
-    return ListView(padding: const EdgeInsets.all(8), children: [
+    final all = DB.list('attendance').where((a) => a['studentId'] == sid).toList();
+    final present = all.where((a) => a['present'] == true).length;
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 20), children: [
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('حضورك الإجمالي', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text('حضرت $present من ${all.length} محاضرة', style: TextStyle(color: Colors.grey.shade700)),
+                Text('الحد المسموح للغياب 25% من كل مادة', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+              ]),
+            ),
+            ring(all.isEmpty ? null : present / all.length, size: 84),
+          ]),
+        ),
+      ),
+      sectionTitle('حسب المادة'),
       for (final s in subs)
         Builder(builder: (_) {
-          final recs = DB.list('attendance').where((a) => a['subjectId'] == s['id'] && a['studentId'] == sid).toList();
+          final recs = _recs(s);
           final abs = recs.where((a) => a['present'] != true).map((a) => '${a['date']}').toList();
-          final r = DB.attRate(studentId: sid, subjectId: s['id']);
+          final r = recs.isEmpty ? 0.0 : (recs.length - abs.length) / recs.length;
           final low = recs.isNotEmpty && r < 0.75;
           return Card(
-            child: ExpansionTile(
-              title: Text('${s['name']}'),
-              subtitle: LinearProgressIndicator(
-                  value: recs.isEmpty ? 0 : r, color: low ? Colors.red : Colors.green, minHeight: 6),
-              trailing: Text(recs.isEmpty ? '-' : pct(r),
-                  style: TextStyle(fontWeight: FontWeight.bold, color: low ? Colors.red : Colors.green)),
-              children: [
-                ListTile(dense: true, title: Text('حضور ${recs.length - abs.length} • غياب ${abs.length}')),
-                if (low) const ListTile(dense: true, leading: Icon(Icons.warning, color: Colors.red), title: Text('تحذير: حضورك أقل من 75%')),
-                for (final d in abs) ListTile(dense: true, leading: const Icon(Icons.close, color: Colors.red), title: Text('غائب: $d')),
-              ],
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                shape: const Border(),
+                title: Row(children: [
+                  Expanded(child: Text('${s['name']}', style: const TextStyle(fontWeight: FontWeight.w800))),
+                  if (recs.isNotEmpty) tag(low ? 'تجاوز الحد' : 'ضمن الحد', low ? kRed : kGreen),
+                ]),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                          value: recs.isEmpty ? 0 : r, minHeight: 8, backgroundColor: kSoft, color: low ? kRed : kGreen),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(recs.isEmpty
+                        ? 'لا محاضرات منتهية بعد'
+                        : 'حضر ${recs.length - abs.length} • غاب ${abs.length} • المحاضرات ${recs.length} • ${pct(r)}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                  ]),
+                ),
+                children: [
+                  for (final d in abs)
+                    ListTile(dense: true, leading: const Icon(Icons.close_rounded, color: kRed), title: Text('غائب: $d')),
+                  if (abs.isEmpty && recs.isNotEmpty)
+                    const ListTile(dense: true, leading: Icon(Icons.check_rounded, color: kGreen), title: Text('ما عندك غياب بهذه المادة')),
+                ],
+              ),
             ),
           );
         }),
@@ -1625,19 +2161,31 @@ class _StudentHomeState extends Live<StudentHome> {
     final ids = mySubjects.map((s) => s['id']).toSet();
     final ex = DB.list('exams').where((e) => ids.contains(e['subjectId'])).toList().reversed.toList();
     if (ex.isEmpty) return empty('ماكو امتحانات أو كوزات حالياً');
-    return ListView(padding: const EdgeInsets.all(8), children: [
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 20), children: [
       for (final e in ex)
         Builder(builder: (_) {
           final res = DB.find('submissions', (r) => r['examId'] == e['id'] && r['studentId'] == sid);
           final sub = DB.find('subjects', (s) => s['id'] == e['subjectId']);
           return Card(
-            child: ListTile(
-              leading: Icon(e['type'] == 'quiz' ? Icons.bolt : Icons.assignment,
-                  color: res == null ? Colors.orange : Colors.green),
-              title: Text('${e['title']}'),
-              subtitle: Text('${sub?['name'] ?? ''} • ${e['type'] == 'quiz' ? 'كوز' : 'امتحان'} • ${e['duration']} دقيقة'),
-              trailing: res == null
-                  ? FilledButton(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: res == null ? kAccent.withValues(alpha: 0.2) : kSoft,
+                  child: Icon(e['type'] == 'quiz' ? Icons.bolt : Icons.assignment_outlined,
+                      color: res == null ? const Color(0xFFB26A00) : kPrimary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${e['title']}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    Text('${sub?['name'] ?? ''} • ${e['type'] == 'quiz' ? 'كوز' : 'امتحان'} • ${e['duration']} دقيقة',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  ]),
+                ),
+                if (res == null)
+                  FilledButton(
                       onPressed: () async {
                         if (!await confirm(context, 'تبدي ${e['title']}؟ عندك ${e['duration']} دقيقة وما تكدر تطلع قبل التسليم')) return;
                         if (!mounted) return;
@@ -1645,8 +2193,11 @@ class _StudentHomeState extends Live<StudentHome> {
                         setState(() {});
                       },
                       child: const Text('ابدأ'))
-                  : Text(res['score'] == null ? 'بانتظار التصحيح' : '${res['score']}/${res['total']}',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: res['score'] == null ? 12 : 16)),
+                else if (res['score'] == null)
+                  tag('بانتظار التصحيح', const Color(0xFFB26A00))
+                else
+                  Text('${res['score']}/${res['total']}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kPrimary)),
+              ]),
             ),
           );
         }),
@@ -1656,38 +2207,148 @@ class _StudentHomeState extends Live<StudentHome> {
   Widget grades() {
     final rs = DB.list('submissions').where((r) => r['studentId'] == sid && r['score'] != null && (r['total'] as num? ?? 0) > 0).toList().reversed.toList();
     if (rs.isEmpty) return empty('ماكو درجات بعد');
-    return ListView(padding: const EdgeInsets.all(8), children: [
-      Card(child: ListTile(title: Text('معدلي: ${pct(rs.map((r) => (r['score'] as num) / (r['total'] as num)).reduce((a, b) => a + b) / rs.length)}'))),
+    final avg = rs.map((r) => (r['score'] as num) / (r['total'] as num)).reduce((a, b) => a + b) / rs.length;
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 20), children: [
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('معدل درجاتي', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                Text('${rs.length} امتحان وكوز مصحح', style: TextStyle(color: Colors.grey.shade700)),
+              ]),
+            ),
+            ring(avg, size: 84),
+          ]),
+        ),
+      ),
+      sectionTitle('التفاصيل'),
       for (final r in rs)
         Builder(builder: (_) {
           final e = DB.find('exams', (x) => x['id'] == r['examId']);
           final sub = e == null ? null : DB.find('subjects', (s) => s['id'] == e['subjectId']);
           final ratio = (r['score'] as num) / (r['total'] as num);
-          return ListTile(
-            leading: Icon(ratio >= 0.5 ? Icons.check_circle : Icons.cancel, color: ratio >= 0.5 ? Colors.green : Colors.red),
-            title: Text('${e?['title'] ?? 'امتحان محذوف'}'),
-            subtitle: Text('${sub?['name'] ?? ''} • ${r['date']}'),
-            trailing: Text('${r['score']} / ${r['total']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(
+                    child: Text('${e?['title'] ?? 'امتحان محذوف'}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(color: kSoft, borderRadius: BorderRadius.circular(12)),
+                    child: Text('${r['score']} / ${r['total']}',
+                        style: const TextStyle(fontWeight: FontWeight.w800, color: kPrimary)),
+                  ),
+                ]),
+                Text('${sub?['name'] ?? ''} • ${r['date']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                      value: ratio, minHeight: 8, backgroundColor: kSoft, color: ratio >= 0.5 ? kPrimary : kRed),
+                ),
+              ]),
+            ),
           );
         }),
     ]);
   }
 
+  Widget account() {
+    Widget row(IconData ic, String k, String v) => ListTile(
+          dense: true,
+          leading: Icon(ic, size: 20, color: Colors.grey.shade600),
+          title: Text(k, style: TextStyle(color: Colors.grey.shade700)),
+          trailing: Text(v, style: const TextStyle(fontWeight: FontWeight.w700)),
+        );
+    return ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 20), children: [
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(children: [
+            CircleAvatar(
+              radius: 38,
+              backgroundColor: kSoft,
+              child: Text(initials('${me['name']}'),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: kPrimary)),
+            ),
+            const SizedBox(height: 10),
+            Text('${me['name']}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            tag('طالب', kPrimary),
+            const SizedBox(height: 14),
+            barcodeBox(),
+          ]),
+        ),
+      ),
+      Card(
+        child: Column(children: [
+          row(Icons.tag, 'الرقم الجامعي', sid),
+          row(Icons.apartment_outlined, 'القسم', '${me['dept'] ?? ''}'),
+          row(Icons.stairs_outlined, 'المرحلة', '${me['stage'] ?? ''}'),
+          row(Icons.schedule, 'الدوام', '${me['shift'] ?? ''}'),
+        ]),
+      ),
+      Card(
+        child: Column(children: [
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_outline, color: kPrimary),
+            title: const Text('المحادثات'),
+            trailing: unreadFor(sid) > 0 ? Badge(label: Text('${unreadFor(sid)}')) : const Icon(Icons.chevron_left),
+            onTap: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => ChatListPage(me: meOf(widget.user), standalone: true))),
+          ),
+          ListTile(
+            leading: const Icon(Icons.key_outlined, color: kPrimary),
+            title: const Text('تغيير كلمة المرور'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => changePassword(context),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 6),
+      OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(foregroundColor: kRed, side: const BorderSide(color: kRed), minimumSize: const Size.fromHeight(48)),
+        onPressed: () => logout(context),
+        icon: const Icon(Icons.logout),
+        label: const Text('تسجيل الخروج'),
+      ),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final pages = [card(), attendance(), exams(), grades(), ChatListPage(me: meOf(widget.user))];
+    final pages = [home(), attendance(), exams(), grades(), account()];
+    const titles = ['الحضور الجامعي', 'حضوري', 'الامتحانات', 'درجاتي', 'حسابي'];
+    const subs = [null, 'نسبة حضورك في كل مادة', 'الامتحانات والكوزات المتاحة', 'درجات كل المواد', null];
+    final chatBtn = IconButton(
+      tooltip: 'المحادثات',
+      icon: chatIcon(sid, Icons.chat_bubble_outline),
+      onPressed: () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => ChatListPage(me: meOf(widget.user), standalone: true))),
+    );
     return Scaffold(
-      appBar: AppBar(title: Text('${me['name']}'), actions: [logoutBtn(context)]),
+      appBar: i == 0
+          ? UniHeader(
+              title: titles[0],
+              name: '${me['name']}',
+              line: ['طالب', me['stage'], me['shift']].where((x) => '${x ?? ''}'.isNotEmpty).join(' • '),
+              actions: [chatBtn])
+          : UniHeader(title: titles[i], sub: subs[i], actions: [chatBtn]),
       body: pages[i],
       bottomNavigationBar: NavigationBar(
         selectedIndex: i,
         onDestinationSelected: (v) => setState(() => i = v),
-        destinations: [
-          const NavigationDestination(icon: Icon(Icons.qr_code_2), label: 'بطاقتي'),
-          const NavigationDestination(icon: Icon(Icons.how_to_reg), label: 'الحضور'),
-          const NavigationDestination(icon: Icon(Icons.quiz), label: 'الامتحانات'),
-          const NavigationDestination(icon: Icon(Icons.grade), label: 'الدرجات'),
-          NavigationDestination(icon: chatIcon(sid, Icons.chat), label: 'المحادثات'),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'الرئيسية'),
+          NavigationDestination(icon: Icon(Icons.fact_check_outlined), selectedIcon: Icon(Icons.fact_check), label: 'حضوري'),
+          NavigationDestination(icon: Icon(Icons.quiz_outlined), selectedIcon: Icon(Icons.quiz), label: 'الامتحانات'),
+          NavigationDestination(icon: Icon(Icons.workspace_premium_outlined), selectedIcon: Icon(Icons.workspace_premium), label: 'درجاتي'),
+          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'حسابي'),
         ],
       ),
     );
